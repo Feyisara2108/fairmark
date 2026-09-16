@@ -56,21 +56,36 @@ used for cross-issuer valuation context rather than per-token deviation.
 ## Features
 
 - **Live dollar-mispricing headline** across all PreStocks tokens
-- **Cross-issuer comparison** for companies on both PreStocks and Tessera
+- **Cross-issuer comparison** for companies on both PreStocks and Tessera, with a
+  **Pyth oracle** third reference where one exists (OpenAI)
+- **PreStocks spotlight** — the single biggest discount, surfaced as a concrete
+  "best deal right now" call to action
 - **Blended baskets** (e.g. AI Pre-IPO: OpenAI · Anthropic · Neuralink · Figure AI)
-- **Ranked token list** sorted by biggest fair-value gap, with live sparklines
-- **One-tap "Trade on Jupiter"** deep link per token
+- **Ranked token list** sorted by biggest fair-value gap, with live sparklines,
+  float/supply, expandable SPV-structure detail, and links back to PreStocks
+- **One-tap "Trade on Jupiter"** deep link per token (routes verified live)
 
 ## Data sources
 
 | Source | Endpoint | Fields used |
 | --- | --- | --- |
-| PreStocks | `GET https://prestocks.com/api/prestocks` | `markPrice`, `tokenPrice`, valuations, `contract_address` |
+| PreStocks | `GET https://prestocks.com/api/prestocks` | `markPrice`, `tokenPrice`, valuations, `supply`, `description`, `external_url`, `contract_address` |
 | Tessera | `GET https://rest-api.tessera.pe/v1/public/token-details` | `markPrice`, `holders`, `markValuation`, `mint` |
+| Pyth | Hermes `v2/updates/price/latest` (`Pyth.Index.OPENAI/USD`, `Crypto.SOL/USD`) | independent oracle reference prices |
 | Jupiter | `https://jup.ag/swap/<SOL>-<mint>` | trade deep link |
 
-Both provider APIs are called through serverless proxies in [`api/`](./api) to
-avoid browser CORS restrictions.
+Provider APIs are called through serverless proxies in [`api/`](./api) to avoid
+browser CORS restrictions.
+
+### Pyth activation
+
+Hermes' price endpoint is auth-gated (Pyth Pro): it needs an access token from
+an authorized Pyth Data Distributor. Set **`PYTH_TOKEN`** in the Vercel
+environment to activate — the app then shows a live SOL price and, for OpenAI
+(the one pre-IPO name Pyth carries a feed for), an independent oracle valuation
+alongside the PreStocks and Tessera marks. Without the token, `/api/pyth`
+returns `{ available: false }` and all Pyth UI is simply omitted; everything
+else works unchanged. Optional override: `PYTH_HERMES_URL`.
 
 ## Stack
 
