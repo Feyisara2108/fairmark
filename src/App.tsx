@@ -7,15 +7,19 @@ import type {
   TesseraToken,
 } from "./lib/types";
 import {
+  bestDiscount,
   buildBaskets,
   crossIssuerPairs,
   fetchPreStocks,
   fetchTessera,
+  formatUsd,
   mispricingSummary,
   rankPreStocks,
 } from "./lib/fairmark";
+import { fetchPyth, type PythSnapshot } from "./lib/pyth";
 import { MispricingHeadline } from "./components/MispricingHeadline";
 import { CrossIssuerCompare } from "./components/CrossIssuerCompare";
+import { PreStocksSpotlight } from "./components/PreStocksSpotlight";
 import { BasketCard } from "./components/BasketCard";
 import { TokenCard } from "./components/TokenCard";
 import { TesseraCard } from "./components/TesseraCard";
@@ -27,6 +31,7 @@ export default function App() {
   const [preStocks, setPreStocks] = useState<RankedPreStock[] | null>(null);
   const [tessera, setTessera] = useState<TesseraToken[] | null>(null);
   const [summary, setSummary] = useState<MispricingSummary | null>(null);
+  const [pyth, setPyth] = useState<PythSnapshot | null>(null);
   const [updatedAt, setUpdatedAt] = useState<Date | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -56,6 +61,10 @@ export default function App() {
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     }
+
+    // Pyth reference prices — optional; stays quiet (available:false) until a
+    // Pyth Pro token is configured server-side. Never blocks the main data.
+    fetchPyth().then(setPyth).catch(() => setPyth({ available: false }));
   }, []);
 
   useEffect(() => {
@@ -86,10 +95,17 @@ export default function App() {
     [pairs],
   );
 
+  const spotlight = useMemo(
+    () => (preStocks ? bestDiscount(preStocks) : null),
+    [preStocks],
+  );
+
+  const pythOpenAiUsd = pyth?.available ? pyth.prices?.openai?.price : undefined;
+
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100">
       <div className="mx-auto max-w-6xl px-5 py-10 sm:py-14">
-        <Masthead />
+        <Masthead pyth={pyth} />
 
         {error && (
           <div className="mb-8 rounded-xl border border-rose-500/40 bg-rose-500/10 p-4 text-sm text-rose-200">
@@ -108,7 +124,7 @@ export default function App() {
               title="Same company, two issuers, two prices"
               subtitle="These companies are tokenized by both PreStocks and Tessera — at different marks and structures. Nowhere else shows them side by side."
             />
-            <CrossIssuerCompare pairs={pairs} />
+            <CrossIssuerCompare pairs={pairs} pythOpenAiUsd={pythOpenAiUsd} />
           </section>
         )}
 
@@ -128,13 +144,18 @@ export default function App() {
           </section>
         )}
 
-        {/* All PreStocks tokens, ranked by deviation, with live sparklines (D) */}
+        {/* PreStocks — the anchor integration: spotlight + full ranked list */}
         <section className="mb-14">
           <SectionHeading
-            eyebrow="PreStocks"
+            eyebrow="PreStocks · tokenized pre-IPO stocks"
             title="Every token, ranked by mispricing"
-            subtitle="Sorted by biggest gap. A discount trades below fair value; a premium above."
+            subtitle="Backed 1:1 by SPV exposure. Sorted by biggest gap — a discount trades below fair value, a premium above. Each card links back to PreStocks and out to a live Jupiter trade."
           />
+          {spotlight && (
+            <div className="mb-5">
+              <PreStocksSpotlight token={spotlight} />
+            </div>
+          )}
           {!preStocks && !error && <SkeletonGrid />}
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {preStocks?.map((t) => (
@@ -173,12 +194,21 @@ export default function App() {
   );
 }
 
-function Masthead() {
+function Masthead({ pyth }: { pyth: PythSnapshot | null }) {
+  const sol = pyth?.available ? pyth.prices?.sol : null;
   return (
     <header className="mb-10">
-      <div className="inline-flex items-center gap-2 rounded-full border border-slate-800 bg-slate-900/60 px-3 py-1 text-xs font-medium text-slate-400">
-        <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
-        Live from PreStocks &amp; Tessera public APIs
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="inline-flex items-center gap-2 rounded-full border border-slate-800 bg-slate-900/60 px-3 py-1 text-xs font-medium text-slate-400">
+          <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+          Live from PreStocks &amp; Tessera public APIs
+        </div>
+        {sol && (
+          <div className="inline-flex items-center gap-2 rounded-full border border-amber-500/30 bg-amber-500/5 px-3 py-1 text-xs font-medium text-amber-300">
+            <span className="h-1.5 w-1.5 rounded-full bg-amber-400" />
+            SOL {formatUsd(sol.price)} · via Pyth
+          </div>
+        )}
       </div>
       <h1 className="mt-5 text-4xl font-bold tracking-tight sm:text-5xl">
         Fair<span className="text-indigo-400">Mark</span>
@@ -229,8 +259,34 @@ function Footer() {
   return (
     <footer className="border-t border-slate-900 pt-6 text-xs text-slate-600">
       <p>
-        Data from public PreStocks and Tessera APIs. FairMark is a discovery
-        tool — it never connects to your wallet or holds funds. Trades open on{" "}
+        Tokens &amp; data by{" "}
+        <a
+          href="https://prestocks.com/products"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-slate-400 underline hover:text-slate-200"
+        >
+          PreStocks
+        </a>{" "}
+        and{" "}
+        <a
+          href="https://app.tessera.pe"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-slate-400 underline hover:text-slate-200"
+        >
+          Tessera
+        </a>
+        . Oracle reference prices by{" "}
+        <a
+          href="https://www.pyth.network"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-slate-400 underline hover:text-slate-200"
+        >
+          Pyth Network
+        </a>
+        . Trades open on{" "}
         <a
           href="https://jup.ag"
           target="_blank"
@@ -239,7 +295,8 @@ function Footer() {
         >
           Jupiter
         </a>
-        . Not investment advice.
+        . FairMark is a discovery tool — it never connects to your wallet or
+        holds funds. Not investment advice.
       </p>
     </footer>
   );
