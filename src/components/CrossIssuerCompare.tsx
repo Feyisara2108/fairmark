@@ -16,21 +16,39 @@ const STRUCTURE = {
 
 /**
  * Feature A — the flagship view. Same company, two issuers, two prices, two
- * structures, side by side. This is the hardest-to-replicate element.
+ * structures, side by side. This is the hardest-to-replicate element. When a
+ * Pyth oracle price is available for a company (OpenAI is the only pre-IPO name
+ * with a Pyth feed), it's shown as an independent third reference.
  */
-export function CrossIssuerCompare({ pairs }: { pairs: CrossIssuerPair[] }) {
+export function CrossIssuerCompare({
+  pairs,
+  pythOpenAiUsd,
+}: {
+  pairs: CrossIssuerPair[];
+  pythOpenAiUsd?: number;
+}) {
   if (pairs.length === 0) return null;
 
   return (
     <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
       {pairs.map((pair) => (
-        <PairCard key={pair.companyKey} pair={pair} />
+        <PairCard
+          key={pair.companyKey}
+          pair={pair}
+          pythUsd={pair.companyKey === "openai" ? pythOpenAiUsd : undefined}
+        />
       ))}
     </div>
   );
 }
 
-function PairCard({ pair }: { pair: CrossIssuerPair }) {
+function PairCard({
+  pair,
+  pythUsd,
+}: {
+  pair: CrossIssuerPair;
+  pythUsd?: number;
+}) {
   const { prestocks, tessera, markSpreadPercent } = pair;
   const prestocksDearer = markSpreadPercent > 0;
 
@@ -81,6 +99,26 @@ function PairCard({ pair }: { pair: CrossIssuerPair }) {
           highlight={!prestocksDearer}
         />
       </div>
+
+      {pythUsd !== undefined && (
+        <div className="mt-3 flex items-center justify-between gap-3 rounded-xl border border-amber-500/30 bg-amber-500/5 p-3">
+          <div>
+            <p className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-amber-300">
+              <span className="relative flex h-1.5 w-1.5">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-amber-400 opacity-75" />
+                <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-amber-400" />
+              </span>
+              Pyth oracle reference · 24/7
+            </p>
+            <p className="mt-0.5 text-[11px] leading-tight text-slate-500">
+              Independent on-chain valuation, priced by Pyth Network
+            </p>
+          </div>
+          <p className="text-lg font-bold tabular-nums text-amber-200">
+            {formatUsd(pythUsd)}
+          </p>
+        </div>
+      )}
 
       <p className="mt-3 text-xs text-slate-500">
         Same underlying company, two issuers.{" "}
