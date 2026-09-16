@@ -228,3 +228,20 @@ export function formatPercent(n: number): string {
   const sign = n > 0 ? "+" : "";
   return `${sign}${n.toFixed(2)}%`;
 }
+
+/** Compact plain number, e.g. 43.7K tokens. */
+export function formatCount(n: number): string {
+  return n.toLocaleString("en-US", {
+    notation: "compact",
+    maximumFractionDigits: 1,
+  });
+}
+
+/** The single most-discounted PreStocks token (biggest buy-below-fair-value). */
+export function bestDiscount(tokens: RankedPreStock[]): RankedPreStock | null {
+  const discounts = tokens.filter((t) => t.deviationPercent < 0);
+  if (discounts.length === 0) return null;
+  return discounts.reduce((a, b) =>
+    b.deviationPercent < a.deviationPercent ? b : a,
+  );
+}
