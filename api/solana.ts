@@ -5,7 +5,11 @@ import type { VercelRequest, VercelResponse } from "@vercel/node";
 // call same-origin (CORS) and letting the RPC endpoint be swapped via env.
 // Defaults to the public mainnet-beta RPC; set SOLANA_RPC_URL to a dedicated
 // provider for production reliability.
-const RPC = process.env.SOLANA_RPC_URL ?? "https://api.mainnet-beta.solana.com";
+// Use || (not ??) so a declared-but-empty env var falls back too: Vercel
+// injects an unset-with-no-value variable as "", which ?? would keep, breaking
+// fetch with "Failed to parse URL". Mirrors the dev proxy in vite.config.ts.
+const RPC =
+  process.env.SOLANA_RPC_URL || "https://api.mainnet-beta.solana.com";
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== "POST") {
