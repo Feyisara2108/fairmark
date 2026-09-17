@@ -27,6 +27,14 @@ replicate view in the product.
 > SpaceX shows a fair value of ~**$151** while its token trades ~**19% below** it —
 > and PreStocks implies a very different SpaceX company valuation than Tessera does.
 
+### 3. On-chain verification
+
+Every token FairMark lists is checked against its **SPL mint on Solana** — the
+live supply is read directly from the chain and surfaced as a "verified
+on-chain ✓" badge on each token (and a count in the header). It's proof the
+listings are real on-chain assets, not just rows from an issuer API. Best-effort
+and non-blocking: if the RPC is unavailable the badge is simply omitted.
+
 FairMark surfaces both gaps, flags them clearly, groups related tokens into
 blended baskets, and links straight out to [Jupiter](https://jup.ag) to trade —
 no wallet connection, no custody, no trading logic of our own.
@@ -63,6 +71,8 @@ used for cross-issuer valuation context rather than per-token deviation.
 - **Blended baskets** (e.g. AI Pre-IPO: OpenAI · Anthropic · Neuralink · Figure AI)
 - **Ranked token list** sorted by biggest fair-value gap, with live sparklines,
   float/supply, expandable SPV-structure detail, and links back to PreStocks
+- **On-chain verification** — live SPL supply read from Solana per token, shown
+  as a "verified on-chain ✓" badge
 - **One-tap "Trade on Jupiter"** deep link per token (routes verified live)
 
 ## Data sources
@@ -72,6 +82,7 @@ used for cross-issuer valuation context rather than per-token deviation.
 | PreStocks | `GET https://prestocks.com/api/prestocks` | `markPrice`, `tokenPrice`, valuations, `supply`, `description`, `external_url`, `contract_address` |
 | Tessera | `GET https://rest-api.tessera.pe/v1/public/token-details` | `markPrice`, `holders`, `markValuation`, `mint` |
 | Pyth | Hermes `v2/updates/price/latest` (`Pyth.Index.OPENAI/USD`, `Crypto.SOL/USD`) | independent oracle reference prices |
+| Solana | JSON-RPC `getTokenSupply` (public mainnet-beta by default) | live on-chain SPL supply for the "verified on-chain" badge |
 | Jupiter | `https://jup.ag/swap/<SOL>-<mint>` | trade deep link |
 
 Provider APIs are called through serverless proxies in [`api/`](./api) to avoid
@@ -86,6 +97,16 @@ environment to activate — the app then shows a live SOL price and, for OpenAI
 alongside the PreStocks and Tessera marks. Without the token, `/api/pyth`
 returns `{ available: false }` and all Pyth UI is simply omitted; everything
 else works unchanged. Optional override: `PYTH_HERMES_URL`.
+
+### Solana RPC (on-chain verification)
+
+The "verified on-chain" badges read live SPL supply via `/api/solana`. By default
+this uses the public `api.mainnet-beta.solana.com` RPC, which is rate-limited and
+can be unreliable under load. For a dependable demo, set **`SOLANA_RPC_URL`** to a
+dedicated provider (Helius / Alchemy / QuickNode free tiers all work) — read by
+both `vite dev` and the Vercel function. Copy `.env.example` to `.env` locally, or
+set it in the Vercel environment. See [`.env.example`](./.env.example) for the URL
+formats. Optional — the badges just degrade gracefully when the RPC is unavailable.
 
 ## Stack
 
@@ -108,7 +129,9 @@ production on Vercel, the functions in `api/` serve those routes.
 
 Push to GitHub and import into Vercel. It auto-detects the Vite build and the
 `api/` serverless functions; the free tier is sufficient. No environment
-variables are required.
+variables are required — the app runs on public endpoints out of the box.
+For a more reliable demo, optionally set `SOLANA_RPC_URL` (on-chain badges) and
+`PYTH_TOKEN` (oracle reference prices); both degrade gracefully when unset.
 
 ## Scope
 
