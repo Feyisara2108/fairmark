@@ -12,19 +12,20 @@ import {
   crossIssuerPairs,
   fetchPreStocks,
   fetchTessera,
-  formatUsd,
+  formatPercent,
   mispricingSummary,
   rankPreStocks,
 } from "./lib/fairmark";
 import { fetchPyth, type PythSnapshot } from "./lib/pyth";
-import { MispricingHeadline } from "./components/MispricingHeadline";
+import { NavBar } from "./components/NavBar";
+import { Hero } from "./components/Hero";
+import { StatStrip, type Stat } from "./components/StatStrip";
 import { CrossIssuerCompare } from "./components/CrossIssuerCompare";
-import { PreStocksSpotlight } from "./components/PreStocksSpotlight";
 import { BasketCard } from "./components/BasketCard";
-import { TokenCard } from "./components/TokenCard";
+import { TokenExplorer } from "./components/TokenExplorer";
 import { TesseraCard } from "./components/TesseraCard";
 
-const REFRESH_MS = 45_000; // feature D: keep the page feeling live
+const REFRESH_MS = 45_000; // keep the page feeling live
 const MAX_HISTORY = 20; // rolling trading-price points per token for the sparkline
 
 export default function App() {
@@ -37,7 +38,7 @@ export default function App() {
 
   // In-memory rolling history of trading prices, keyed by token symbol.
   const historyRef = useRef<Record<string, number[]>>({});
-  const [historyTick, setHistoryTick] = useState(0);
+  const [, setHistoryTick] = useState(0);
 
   const load = useCallback(async () => {
     try {
@@ -100,12 +101,51 @@ export default function App() {
     [preStocks],
   );
 
+  const stats: Stat[] = useMemo(() => {
+    if (!summary) return [];
+    return [
+      { label: "Tokens tracked", value: String(summary.tokenCount) },
+      {
+        label: "Trading at a discount",
+        value: `${summary.discountCount} / ${summary.tokenCount}`,
+        sub: "below stated fair value",
+        tone: "good",
+      },
+      {
+        label: "Biggest discount",
+        value: spotlight ? formatPercent(spotlight.deviationPercent) : "—",
+        sub: spotlight
+          ? spotlight.name.replace(/\s*PreStocks$/i, "")
+          : undefined,
+        tone: "good",
+      },
+      {
+        label: "Cross-issuer companies",
+        value: String(pairs.length),
+        sub: "priced by both issuers",
+        tone: "brand",
+      },
+    ];
+  }, [summary, spotlight, pairs.length]);
+
   const pythOpenAiUsd = pyth?.available ? pyth.prices?.openai?.price : undefined;
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100">
-      <div className="mx-auto max-w-6xl px-5 py-10 sm:py-14">
-        <Masthead pyth={pyth} />
+    <div className="min-h-screen bg-navy-950 text-slate-100">
+      <NavBar pyth={pyth} updatedAt={updatedAt} />
+
+      <main className="mx-auto max-w-6xl px-5 pb-20">
+        <Hero
+          summary={summary}
+          spotlight={spotlight}
+          crossIssuerCount={pairs.length}
+        />
+
+        {stats.length > 0 && (
+          <div className="mb-14">
+            <StatStrip stats={stats} />
+          </div>
+        )}
 
         {error && (
           <div className="mb-8 rounded-xl border border-rose-500/40 bg-rose-500/10 p-4 text-sm text-rose-200">
@@ -113,24 +153,21 @@ export default function App() {
           </div>
         )}
 
-        {/* B — headline mispricing stat, first thing visible */}
-        <MispricingHeadline summary={summary} updatedAt={updatedAt} />
-
-        {/* A — cross-issuer comparison, the flagship view */}
+        {/* The flagship view — cross-issuer comparison */}
         {pairs.length > 0 && (
-          <section className="mb-14">
+          <section id="cross-issuer" className="mb-16 scroll-mt-20">
             <SectionHeading
-              eyebrow="Cross-issuer"
+              eyebrow="The flagship view"
               title="Same company, two issuers, two prices"
-              subtitle="These companies are tokenized by both PreStocks and Tessera — at different marks and structures. Nowhere else shows them side by side."
+              subtitle="These companies are tokenized by both PreStocks and Tessera — at different implied valuations and different legal structures. Nowhere else shows them side by side."
             />
             <CrossIssuerCompare pairs={pairs} pythOpenAiUsd={pythOpenAiUsd} />
           </section>
         )}
 
-        {/* C — blended baskets */}
+        {/* Blended baskets */}
         {baskets.length > 0 && (
-          <section className="mb-14">
+          <section id="baskets" className="mb-16 scroll-mt-20">
             <SectionHeading
               eyebrow="Baskets"
               title="Blended index view"
@@ -144,35 +181,22 @@ export default function App() {
           </section>
         )}
 
-        {/* PreStocks — the anchor integration: spotlight + full ranked list */}
-        <section className="mb-14">
+        {/* Full PreStocks token list */}
+        <section id="tokens" className="mb-16 scroll-mt-20">
           <SectionHeading
             eyebrow="PreStocks · tokenized pre-IPO stocks"
             title="Every token, ranked by mispricing"
-            subtitle="Backed 1:1 by SPV exposure. Sorted by biggest gap — a discount trades below fair value, a premium above. Each card links back to PreStocks and out to a live Jupiter trade."
+            subtitle="Backed 1:1 by SPV exposure. Sorted by biggest gap — a discount trades below fair value, a premium above. Each links back to PreStocks and out to a live Jupiter trade."
           />
-          {spotlight && (
-            <div className="mb-5">
-              <PreStocksSpotlight token={spotlight} />
-            </div>
-          )}
-          {!preStocks && !error && <SkeletonGrid />}
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {preStocks?.map((t) => (
-              <TokenCard
-                key={t.contract_address}
-                token={t}
-                history={
-                  // historyTick in deps ensures re-render when history grows
-                  historyTick >= 0 ? historyRef.current[t.symbol] : undefined
-                }
-              />
-            ))}
-          </div>
+          {!preStocks && !error ? (
+            <SkeletonGrid />
+          ) : preStocks ? (
+            <TokenExplorer tokens={preStocks} history={historyRef.current} />
+          ) : null}
         </section>
 
         {/* Remaining Tessera tokens not already paired above */}
-        <section className="mb-14">
+        <section className="mb-16 scroll-mt-20">
           <SectionHeading
             eyebrow="Tessera"
             title="Other Tessera tokens"
@@ -189,36 +213,8 @@ export default function App() {
         </section>
 
         <Footer />
-      </div>
+      </main>
     </div>
-  );
-}
-
-function Masthead({ pyth }: { pyth: PythSnapshot | null }) {
-  const sol = pyth?.available ? pyth.prices?.sol : null;
-  return (
-    <header className="mb-10">
-      <div className="flex flex-wrap items-center gap-2">
-        <div className="inline-flex items-center gap-2 rounded-full border border-slate-800 bg-slate-900/60 px-3 py-1 text-xs font-medium text-slate-400">
-          <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
-          Live from PreStocks &amp; Tessera public APIs
-        </div>
-        {sol && (
-          <div className="inline-flex items-center gap-2 rounded-full border border-amber-500/30 bg-amber-500/5 px-3 py-1 text-xs font-medium text-amber-300">
-            <span className="h-1.5 w-1.5 rounded-full bg-amber-400" />
-            SOL {formatUsd(sol.price)} · via Pyth
-          </div>
-        )}
-      </div>
-      <h1 className="mt-5 text-4xl font-bold tracking-tight sm:text-5xl">
-        Fair<span className="text-indigo-400">Mark</span>
-      </h1>
-      <p className="mt-3 max-w-2xl text-lg text-slate-400">
-        Tokenized pre-IPO stocks often trade at a gap from their stated fair
-        value — and the same company can be priced differently across issuers.
-        FairMark surfaces the gap before you buy, then takes you to the trade.
-      </p>
-    </header>
   );
 }
 
@@ -232,12 +228,14 @@ function SectionHeading({
   subtitle: string;
 }) {
   return (
-    <div className="mb-5">
-      <p className="text-xs font-semibold uppercase tracking-widest text-indigo-400">
+    <div className="mb-6">
+      <p className="text-xs font-semibold uppercase tracking-widest text-gold-400">
         {eyebrow}
       </p>
-      <h2 className="mt-1 text-2xl font-semibold text-slate-100">{title}</h2>
-      <p className="mt-1 max-w-2xl text-sm text-slate-500">{subtitle}</p>
+      <h2 className="mt-1.5 text-2xl font-bold tracking-tight text-slate-100 sm:text-3xl">
+        {title}
+      </h2>
+      <p className="mt-2 max-w-2xl text-sm text-slate-500">{subtitle}</p>
     </div>
   );
 }
@@ -257,47 +255,44 @@ function SkeletonGrid({ count = 6 }: { count?: number }) {
 
 function Footer() {
   return (
-    <footer className="border-t border-slate-900 pt-6 text-xs text-slate-600">
-      <p>
+    <footer className="border-t border-slate-900 pt-8 text-xs text-slate-600">
+      <div className="mb-4 flex items-center gap-2">
+        <span className="flex h-6 w-6 items-center justify-center rounded-md bg-gradient-to-br from-gold-300 to-gold-500 text-xs font-black text-navy-950">
+          F
+        </span>
+        <span className="text-sm font-bold text-slate-300">
+          Fair<span className="text-gold-400">Mark</span>
+        </span>
+      </div>
+      <p className="max-w-3xl leading-relaxed">
         Tokens &amp; data by{" "}
-        <a
-          href="https://prestocks.com/products"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-slate-400 underline hover:text-slate-200"
-        >
-          PreStocks
-        </a>{" "}
-        and{" "}
-        <a
-          href="https://app.tessera.pe"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-slate-400 underline hover:text-slate-200"
-        >
-          Tessera
-        </a>
-        . Oracle reference prices by{" "}
-        <a
-          href="https://www.pyth.network"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-slate-400 underline hover:text-slate-200"
-        >
-          Pyth Network
-        </a>
-        . Trades open on{" "}
-        <a
-          href="https://jup.ag"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-slate-400 underline hover:text-slate-200"
-        >
-          Jupiter
-        </a>
-        . FairMark is a discovery tool — it never connects to your wallet or
-        holds funds. Not investment advice.
+        <FooterLink href="https://prestocks.com/products">PreStocks</FooterLink>{" "}
+        and <FooterLink href="https://app.tessera.pe">Tessera</FooterLink>.
+        Oracle reference prices by{" "}
+        <FooterLink href="https://www.pyth.network">Pyth Network</FooterLink>.
+        Trades open on <FooterLink href="https://jup.ag">Jupiter</FooterLink>.
+        FairMark is a discovery tool — it never connects to your wallet or holds
+        funds. Not investment advice.
       </p>
     </footer>
+  );
+}
+
+function FooterLink({
+  href,
+  children,
+}: {
+  href: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <a
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="text-slate-400 underline decoration-slate-700 underline-offset-2 hover:text-slate-200"
+    >
+      {children}
+    </a>
   );
 }
