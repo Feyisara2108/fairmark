@@ -29,12 +29,20 @@ export default defineConfig({
         rewrite: () => "/v1/public/token-details",
       },
       // JSON-RPC pass-through to Solana mainnet — the frontend POSTs a
-      // getTokenSupply batch; forward it verbatim to read on-chain supply.
+      // getTokenSupply call; forward it to read on-chain supply. The public RPC
+      // rejects browser-originated requests (403 on Origin/Referer), so strip
+      // those headers to mirror the header-clean prod fetch in api/solana.ts.
       "/api/solana": {
         target: "https://api.mainnet-beta.solana.com",
         changeOrigin: true,
         agent: ipv4Agent,
         rewrite: () => "/",
+        configure: (proxy) => {
+          proxy.on("proxyReq", (proxyReq) => {
+            proxyReq.removeHeader("origin");
+            proxyReq.removeHeader("referer");
+          });
+        },
       },
     },
   },
