@@ -1,9 +1,117 @@
 @import "tailwindcss";
 
+/* Design tokens — registered with Tailwind v4 so utilities pick them up. */
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+
+  /* Private-markets base — deep navy instead of cool slate. */
+  --color-navy-950: #0a1020;
+  --color-navy-900: #111a2e;
+  --color-navy-800: #1b2740;
+  --color-navy-700: #29385a;
+
+  /* Brand — gold. Buttons use dark navy text on gold for contrast. */
+  --color-gold-300: #f6c667;
+  --color-gold-400: #eab04c;
+  --color-gold-500: #d9973a;
+  --color-gold-600: #b87d2a;
+
+  --animate-fade-up: fade-up 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
+  --animate-fade-in: fade-in 0.5s ease-out both;
+  --animate-shimmer: shimmer 2.2s linear infinite;
+}
+
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
 :root {
   color-scheme: dark;
 }
 
 html {
   scroll-behavior: smooth;
+  /* offset anchored scrolls so the sticky nav doesn't cover section headings */
+  scroll-padding-top: 5rem;
+}
+
+body {
+  font-family: var(--font-sans);
+  background-color: #0a1020;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* Numeric-heavy elements read better in the mono face with tabular figures. */
+.font-num {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+
+/* Ambient radial glow used behind the hero / page background — warm gold. */
+.bg-aurora {
+  background-image:
+    radial-gradient(50rem 30rem at 12% -8%, rgba(234, 176, 76, 0.16), transparent 60%),
+    radial-gradient(46rem 26rem at 108% 4%, rgba(52, 211, 153, 0.10), transparent 55%),
+    radial-gradient(38rem 24rem at 60% 120%, rgba(217, 151, 58, 0.07), transparent 60%);
+}
+
+/* Subtle dotted grid texture for the hero backdrop. */
+.bg-grid {
+  background-image: radial-gradient(rgba(148, 163, 184, 0.07) 1px, transparent 1px);
+  background-size: 22px 22px;
+}
+
+/* Animated gradient text used on the headline number — gold shimmer. */
+.text-shine {
+  background: linear-gradient(
+    100deg,
+    #f5f3ea 20%,
+    #eab04c 42%,
+    #f6c667 58%,
+    #f5f3ea 80%
+  );
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: var(--animate-shimmer);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
 }
