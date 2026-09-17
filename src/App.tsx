@@ -89,9 +89,12 @@ export default function App() {
   useEffect(() => {
     if (onchainFetched.current || !preStocks || preStocks.length === 0) return;
     onchainFetched.current = true;
-    fetchOnchainSupply(preStocks.map((t) => t.contract_address))
-      .then(setOnchain)
-      .catch(() => setOnchain({}));
+    fetchOnchainSupply(
+      preStocks.map((t) => t.contract_address),
+      // Reveal each badge the moment its mint verifies, rather than all at once.
+      (mint, supply) =>
+        setOnchain((prev) => ({ ...prev, [mint]: supply })),
+    ).catch(() => setOnchain({}));
   }, [preStocks]);
 
   const pairs: CrossIssuerPair[] = useMemo(

@@ -10,41 +10,58 @@ export interface OnchainSupply {
 }
 
 interface RpcTokenSupplyResult {
-  id: string;
   result?: { value?: { uiAmount: number | null; decimals: number } };
+  error?: { code?: number };
 }
 
-/**
- * Fetch on-chain supply for a set of mint addresses in one JSON-RPC batch.
- * Returns a map keyed by mint; mints that fail to resolve are simply absent.
- */
-export async function fetchOnchainSupply(
-  mints: string[],
-): Promise<Record<string, OnchainSupply>> {
-  if (mints.length === 0) return {};
+// The public mainnet-beta RPC rate-limits bursts of getTokenSupply (429), so we
+// query mints one at a time with a small gap rather than one big batch. A single
+// dedicated RPC (SOLANA_RPC_URL) would tolerate a batch, but spacing keeps the
+// default endpoint reliable too.
+const GAP_MS = 250;
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-  const batch = mints.map((mint, i) => ({
-    jsonrpc: "2.0",
-    id: String(i),
-    method: "getTokenSupply",
-    params: [mint],
-  }));
-
+async function fetchOne(mint: string): Promise<OnchainSupply | null> {
   const res = await fetch("/api/solana", {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify(batch),
+    body: JSON.stringify({
+      jsonrpc: "2.0",
+      id: "1",
+      method: "getTokenSupply",
+      params: [mint],
+    }),
   });
-  if (!res.ok) throw new Error(`Solana proxy returned ${res.status}`);
+  if (!res.ok) return null;
+  const row = (await res.json()) as RpcTokenSupplyResult;
+  const value = row.result?.value;
+  if (!value || value.uiAmount == null) return null;
+  return { supply: value.uiAmount, decimals: value.decimals };
+}
 
-  const rows = (await res.json()) as RpcTokenSupplyResult[];
+/**
+ * Fetch on-chain supply for a set of mint addresses. Queries sequentially to
+ * respect public-RPC rate limits and invokes `onResolve` as each mint verifies,
+ * so badges appear progressively. Returns the full map once every mint settles;
+ * mints that fail to resolve are simply absent.
+ */
+export async function fetchOnchainSupply(
+  mints: string[],
+  onResolve?: (mint: string, supply: OnchainSupply) => void,
+): Promise<Record<string, OnchainSupply>> {
   const out: Record<string, OnchainSupply> = {};
-  for (const row of Array.isArray(rows) ? rows : []) {
-    const idx = Number(row.id);
-    const mint = mints[idx];
-    const value = row.result?.value;
-    if (!mint || !value || value.uiAmount == null) continue;
-    out[mint] = { supply: value.uiAmount, decimals: value.decimals };
+  for (let i = 0; i < mints.length; i++) {
+    const mint = mints[i];
+    try {
+      const supply = await fetchOne(mint);
+      if (supply) {
+        out[mint] = supply;
+        onResolve?.(mint, supply);
+      }
+    } catch {
+      // best-effort — skip this mint
+    }
+    if (i < mints.length - 1) await sleep(GAP_MS);
   }
   return out;
 }
