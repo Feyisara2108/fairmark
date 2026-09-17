@@ -28,6 +28,14 @@ export default defineConfig({
         agent: ipv4Agent,
         rewrite: () => "/v1/public/token-details",
       },
+      // JSON-RPC pass-through to Solana mainnet — the frontend POSTs a
+      // getTokenSupply batch; forward it verbatim to read on-chain supply.
+      "/api/solana": {
+        target: "https://api.mainnet-beta.solana.com",
+        changeOrigin: true,
+        agent: ipv4Agent,
+        rewrite: () => "/",
+      },
     },
   },
 });
