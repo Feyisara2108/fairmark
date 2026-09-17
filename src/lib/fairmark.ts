@@ -109,7 +109,13 @@ export function crossIssuerPairs(
 ): CrossIssuerPair[] {
   const tesseraByKey = new Map<string, TesseraToken>();
   for (const t of tessera) {
-    tesseraByKey.set(companyKey(t.code || t.symbol || t.name), t);
+    // Index every identifier the token exposes, so a match survives one field
+    // being formatted unexpectedly (e.g. cased differently than the t-prefix
+    // convention companyKey normalizes). First writer wins per key.
+    for (const id of [t.code, t.symbol, t.name]) {
+      const key = id && companyKey(id);
+      if (key && !tesseraByKey.has(key)) tesseraByKey.set(key, t);
+    }
   }
 
   const pairs: CrossIssuerPair[] = [];
