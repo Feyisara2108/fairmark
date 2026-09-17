@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import type { RankedPreStock } from "../lib/types";
 import { formatCount, formatUsd, formatValuation } from "../lib/fairmark";
+import type { OnchainSupply } from "../lib/solana";
 import { TokenCard } from "./TokenCard";
 import { DeviationBadge } from "./DeviationBadge";
 
@@ -15,9 +16,11 @@ type SortKey = "deviation" | "name" | "fair" | "price" | "valuation";
 export function TokenExplorer({
   tokens,
   history,
+  onchain,
 }: {
   tokens: RankedPreStock[];
   history: Record<string, number[]>;
+  onchain: Record<string, OnchainSupply>;
 }) {
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<Filter>("all");
@@ -128,12 +131,14 @@ export function TokenExplorer({
               key={t.contract_address}
               token={t}
               history={history[t.symbol]}
+              onchain={onchain[t.contract_address]}
             />
           ))}
         </div>
       ) : (
         <TokenTable
           tokens={visible}
+          onchain={onchain}
           sortKey={sortKey}
           asc={asc}
           onSort={(k) => {
@@ -151,11 +156,13 @@ export function TokenExplorer({
 
 function TokenTable({
   tokens,
+  onchain,
   sortKey,
   asc,
   onSort,
 }: {
   tokens: RankedPreStock[];
+  onchain: Record<string, OnchainSupply>;
   sortKey: SortKey;
   asc: boolean;
   onSort: (k: SortKey) => void;
@@ -216,8 +223,16 @@ function TokenTable({
                     }}
                   />
                   <div>
-                    <p className="font-semibold text-slate-100">
+                    <p className="flex items-center gap-1.5 font-semibold text-slate-100">
                       {t.name.replace(/ PreStocks$/, "")}
+                      {onchain[t.contract_address] && (
+                        <span
+                          className="text-emerald-400"
+                          title="Verified on-chain — live SPL supply read from Solana"
+                        >
+                          ✓
+                        </span>
+                      )}
                     </p>
                     <p className="text-xs text-slate-500">{t.symbol}</p>
                   </div>

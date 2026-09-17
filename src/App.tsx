@@ -17,6 +17,7 @@ import {
   rankPreStocks,
 } from "./lib/fairmark";
 import { fetchPyth, type PythSnapshot } from "./lib/pyth";
+import { fetchOnchainSupply, type OnchainSupply } from "./lib/solana";
 import { NavBar } from "./components/NavBar";
 import { Hero } from "./components/Hero";
 import { StatStrip, type Stat } from "./components/StatStrip";
@@ -33,8 +34,12 @@ export default function App() {
   const [tessera, setTessera] = useState<TesseraToken[] | null>(null);
   const [summary, setSummary] = useState<MispricingSummary | null>(null);
   const [pyth, setPyth] = useState<PythSnapshot | null>(null);
+  const [onchain, setOnchain] = useState<Record<string, OnchainSupply>>({});
   const [updatedAt, setUpdatedAt] = useState<Date | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  // Guard so on-chain supply is fetched just once, after the token set is known.
+  const onchainFetched = useRef(false);
 
   // In-memory rolling history of trading prices, keyed by token symbol.
   const historyRef = useRef<Record<string, number[]>>({});
@@ -79,6 +84,16 @@ export default function App() {
     return () => clearInterval(id);
   }, [load]);
 
+  // Once the token set is known, verify each mint's live supply directly on
+  // Solana. Best-effort: on any failure the verification UI is simply omitted.
+  useEffect(() => {
+    if (onchainFetched.current || !preStocks || preStocks.length === 0) return;
+    onchainFetched.current = true;
+    fetchOnchainSupply(preStocks.map((t) => t.contract_address))
+      .then(setOnchain)
+      .catch(() => setOnchain({}));
+  }, [preStocks]);
+
   const pairs: CrossIssuerPair[] = useMemo(
     () => (preStocks && tessera ? crossIssuerPairs(preStocks, tessera) : []),
     [preStocks, tessera],
@@ -101,10 +116,19 @@ export default function App() {
     [preStocks],
   );
 
+  const verifiedCount = Object.keys(onchain).length;
+
   const stats: Stat[] = useMemo(() => {
     if (!summary) return [];
     return [
-      { label: "Tokens tracked", value: String(summary.tokenCount) },
+      {
+        label: "Tokens tracked",
+        value: String(summary.tokenCount),
+        sub:
+          verifiedCount > 0
+            ? `${verifiedCount} verified on-chain ✓`
+            : "live from PreStocks",
+      },
       {
         label: "Trading at a discount",
         value: `${summary.discountCount} / ${summary.tokenCount}`,
@@ -126,7 +150,7 @@ export default function App() {
         tone: "brand",
       },
     ];
-  }, [summary, spotlight, pairs.length]);
+  }, [summary, spotlight, pairs.length, verifiedCount]);
 
   const pythOpenAiUsd = pyth?.available ? pyth.prices?.openai?.price : undefined;
 
@@ -191,7 +215,11 @@ export default function App() {
           {!preStocks && !error ? (
             <SkeletonGrid />
           ) : preStocks ? (
-            <TokenExplorer tokens={preStocks} history={historyRef.current} />
+            <TokenExplorer
+              tokens={preStocks}
+              history={historyRef.current}
+              onchain={onchain}
+            />
           ) : null}
         </section>
 

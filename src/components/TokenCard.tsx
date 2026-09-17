@@ -1,5 +1,6 @@
 import { useState, type ReactNode } from "react";
 import type { RankedPreStock } from "../lib/types";
+import type { OnchainSupply } from "../lib/solana";
 import { formatCount, formatUsd, formatValuation } from "../lib/fairmark";
 import { DeviationBadge } from "./DeviationBadge";
 import { Sparkline } from "./Sparkline";
@@ -11,9 +12,11 @@ const SPV_NOTE = /([A-Z0-9 ]+ is a PreStocks issued token[^]*?\.)\s*$/;
 export function TokenCard({
   token,
   history = [],
+  onchain,
 }: {
   token: RankedPreStock;
   history?: number[];
+  onchain?: OnchainSupply;
 }) {
   const [open, setOpen] = useState(false);
   const discount = token.deviationPercent < 0;
@@ -47,7 +50,17 @@ export function TokenCard({
             <h3 className="font-semibold leading-tight text-slate-100">
               {token.name.replace(/ PreStocks$/, "")}
             </h3>
-            <p className="text-xs text-slate-500">{token.symbol}</p>
+            <div className="flex items-center gap-2">
+              <p className="text-xs text-slate-500">{token.symbol}</p>
+              {onchain && (
+                <span
+                  className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-300 ring-1 ring-inset ring-emerald-500/30"
+                  title={`Verified on-chain — ${formatCount(onchain.supply)} SPL supply read live from Solana`}
+                >
+                  <span aria-hidden>⛓</span> On-chain ✓
+                </span>
+              )}
+            </div>
           </div>
         </div>
         <DeviationBadge value={token.deviationPercent} />
