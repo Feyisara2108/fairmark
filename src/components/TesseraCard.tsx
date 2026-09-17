@@ -26,7 +26,7 @@ export function TesseraCard({ token }: { token: TesseraToken }) {
           <p className="text-xs uppercase tracking-wide text-slate-500">
             Fair value
           </p>
-          <p className="font-semibold tabular-nums text-slate-100">
+          <p className="font-num font-semibold text-slate-100">
             {formatUsd(token.markPrice)}
           </p>
         </div>
@@ -34,7 +34,7 @@ export function TesseraCard({ token }: { token: TesseraToken }) {
           <p className="text-xs uppercase tracking-wide text-slate-500">
             Valuation
           </p>
-          <p className="font-semibold tabular-nums text-slate-400">
+          <p className="font-num font-semibold text-slate-400">
             {formatValuation(token.markValuation)}
           </p>
         </div>
@@ -42,7 +42,7 @@ export function TesseraCard({ token }: { token: TesseraToken }) {
           <p className="text-xs uppercase tracking-wide text-slate-500">
             Holders
           </p>
-          <p className="font-semibold tabular-nums text-slate-400">
+          <p className="font-num font-semibold text-slate-400">
             {token.holders.toLocaleString("en-US")}
           </p>
         </div>

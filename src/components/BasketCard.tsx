@@ -22,7 +22,7 @@ export function BasketCard({ basket }: { basket: Basket }) {
           <p className="text-xs uppercase tracking-wide text-slate-500">
             Blended fair value
           </p>
-          <p className="font-semibold tabular-nums text-slate-100">
+          <p className="font-num font-semibold text-slate-100">
             {formatUsd(basket.blendedMarkPrice)}
           </p>
         </div>
@@ -31,7 +31,7 @@ export function BasketCard({ basket }: { basket: Basket }) {
             Blended trading price
           </p>
           <p
-            className={`font-semibold tabular-nums ${
+            className={`font-num font-semibold ${
               basket.deviationPercent < 0 ? "text-emerald-300" : "text-rose-300"
             }`}
           >

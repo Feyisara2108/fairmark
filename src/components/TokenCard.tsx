@@ -102,7 +102,7 @@ export function TokenCard({
           <p>{blurb}</p>
           {structure && (
             <p className="text-slate-300">
-              <span className="font-semibold text-indigo-300">Structure:</span>{" "}
+              <span className="font-semibold text-gold-300">Structure:</span>{" "}
               {structure}
             </p>
           )}
@@ -123,7 +123,7 @@ export function TokenCard({
           href={token.tradeUrl}
           target="_blank"
           rel="noopener noreferrer"
-          className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl bg-indigo-500 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-indigo-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-300"
+          className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl bg-gold-400 px-4 py-2.5 text-sm font-bold text-navy-950 transition-colors hover:bg-gold-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-gold-300"
         >
           Trade on Jupiter
           <span aria-hidden>↗</span>
@@ -166,7 +166,7 @@ function Metric({
   return (
     <div>
       <p className="text-xs uppercase tracking-wide text-slate-500">{label}</p>
-      <p className={`flex items-center gap-1.5 font-semibold tabular-nums ${valueTone}`}>
+      <p className={`font-num flex items-center gap-1.5 font-semibold ${valueTone}`}>
         {value}
         {badge}
       </p>

@@ -10,15 +10,16 @@ import {
 // PreStocks: "backed 1:1 by SPV exposure" (from its token descriptions).
 // Tessera: pre-IPO exposure via a loan-participation right.
 const STRUCTURE = {
-  prestocks: "SPV equity exposure, backed 1:1",
-  tessera: "Loan participation right",
+  prestocks: "SPV equity exposure · backed 1:1",
+  tessera: "Loan-participation right",
 } as const;
 
 /**
- * Feature A — the flagship view. Same company, two issuers, two prices, two
- * structures, side by side. This is the hardest-to-replicate element. When a
- * Pyth oracle price is available for a company (OpenAI is the only pre-IPO name
- * with a Pyth feed), it's shown as an independent third reference.
+ * The flagship view. Same company, two issuers, two prices, two legal
+ * structures, side by side — with a visual valuation bar so the spread is
+ * immediately legible. This is the hardest-to-replicate element of the product.
+ * When a Pyth oracle price exists (OpenAI is the only pre-IPO name with a feed),
+ * it's shown as an independent third reference.
  */
 export function CrossIssuerCompare({
   pairs,
@@ -52,29 +53,57 @@ function PairCard({
   const { prestocks, tessera, markSpreadPercent } = pair;
   const prestocksDearer = markSpreadPercent > 0;
 
+  const maxVal = Math.max(prestocks.markValuation, tessera.markValuation) || 1;
+
   return (
-    <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-5">
+    <div className="flex flex-col rounded-2xl border border-slate-800 bg-slate-900/60 p-5 transition-colors hover:border-slate-700">
       <div className="mb-4 flex items-center justify-between gap-3">
         <div className="flex items-center gap-3">
           <img
             src={prestocks.image}
             alt=""
-            className="h-9 w-9 rounded-full bg-slate-800 object-contain"
+            className="h-10 w-10 rounded-full bg-slate-800 object-contain"
             loading="lazy"
             onError={(e) => {
               (e.currentTarget as HTMLImageElement).style.visibility = "hidden";
             }}
           />
-          <h3 className="text-lg font-semibold text-slate-100">
-            {pair.displayName}
-          </h3>
+          <div>
+            <h3 className="text-lg font-bold text-slate-100">
+              {pair.displayName}
+            </h3>
+            <p className="text-xs text-slate-500">
+              Tokenized by both PreStocks &amp; Tessera
+            </p>
+          </div>
         </div>
         <span
-          className="rounded-full bg-indigo-500/15 px-2.5 py-1 text-xs font-semibold text-indigo-300 ring-1 ring-inset ring-indigo-500/40"
+          className="font-num rounded-full bg-gold-500/15 px-2.5 py-1 text-xs font-bold text-gold-300 ring-1 ring-inset ring-gold-500/40"
           title="How far PreStocks' implied company valuation sits above/below Tessera's for the same company"
         >
-          {formatPercent(markSpreadPercent)} valuation spread
+          {formatPercent(markSpreadPercent)} spread
         </span>
+      </div>
+
+      {/* Visual valuation comparison — the spread you can see. */}
+      <div className="mb-4 space-y-2.5 rounded-xl bg-slate-950/40 p-3.5">
+        <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+          Implied company valuation
+        </p>
+        <ValuationBar
+          label="PreStocks"
+          valuation={prestocks.markValuation}
+          pct={(prestocks.markValuation / maxVal) * 100}
+          tone="gold"
+          dearer={prestocksDearer}
+        />
+        <ValuationBar
+          label="Tessera"
+          valuation={tessera.markValuation}
+          pct={(tessera.markValuation / maxVal) * 100}
+          tone="sky"
+          dearer={!prestocksDearer}
+        />
       </div>
 
       <div className="grid grid-cols-2 gap-3">
@@ -84,7 +113,6 @@ function PairCard({
           fairValue={formatUsd(prestocks.markPrice)}
           tradingPrice={formatUsd(prestocks.tokenPrice)}
           deviation={prestocks.deviationPercent}
-          valuation={formatValuation(prestocks.markValuation)}
           tradeUrl={prestocks.tradeUrl}
           highlight={prestocksDearer}
         />
@@ -94,7 +122,6 @@ function PairCard({
           fairValue={formatUsd(tessera.markPrice)}
           tradingPrice={null}
           deviation={null}
-          valuation={formatValuation(tessera.markValuation)}
           tradeUrl={jupiterTradeUrl(tessera.mint)}
           highlight={!prestocksDearer}
         />
@@ -111,21 +138,60 @@ function PairCard({
               Pyth oracle reference · 24/7
             </p>
             <p className="mt-0.5 text-[11px] leading-tight text-slate-500">
-              Independent on-chain valuation, priced by Pyth Network
+              Independent on-chain price, by Pyth Network
             </p>
           </div>
-          <p className="text-lg font-bold tabular-nums text-amber-200">
+          <p className="font-num text-lg font-bold text-amber-200">
             {formatUsd(pythUsd)}
           </p>
         </div>
       )}
 
-      <p className="mt-3 text-xs text-slate-500">
+      <p className="mt-3 text-xs leading-relaxed text-slate-500">
         Same underlying company, two issuers.{" "}
-        {prestocksDearer ? "PreStocks" : "Tessera"} values it richer by{" "}
-        {Math.abs(markSpreadPercent).toFixed(1)}% (by implied valuation — per-token
-        prices differ in denomination and aren't directly comparable).
+        <span className="font-semibold text-slate-300">
+          {prestocksDearer ? "PreStocks" : "Tessera"} values it richer by{" "}
+          {Math.abs(markSpreadPercent).toFixed(1)}%
+        </span>{" "}
+        (by implied valuation — per-token prices differ in denomination and
+        aren't directly comparable).
       </p>
+    </div>
+  );
+}
+
+function ValuationBar({
+  label,
+  valuation,
+  pct,
+  tone,
+  dearer,
+}: {
+  label: string;
+  valuation: number;
+  pct: number;
+  tone: "gold" | "sky";
+  dearer: boolean;
+}) {
+  const barColor =
+    tone === "gold"
+      ? "from-gold-500 to-gold-300"
+      : "from-sky-500 to-sky-400";
+  return (
+    <div className="flex items-center gap-3">
+      <span className="w-16 shrink-0 text-xs font-medium text-slate-400">
+        {label}
+      </span>
+      <div className="relative h-6 flex-1 overflow-hidden rounded-md bg-slate-800/60">
+        <div
+          className={`h-full rounded-md bg-gradient-to-r ${barColor} transition-[width] duration-700`}
+          style={{ width: `${Math.max(pct, 4)}%` }}
+        />
+        <span className="font-num absolute inset-y-0 right-2 flex items-center text-xs font-bold text-slate-100">
+          {formatValuation(valuation)}
+          {dearer && <span className="ml-1 text-[10px] text-slate-300">▲</span>}
+        </span>
+      </div>
     </div>
   );
 }
@@ -136,7 +202,6 @@ function IssuerColumn({
   fairValue,
   tradingPrice,
   deviation,
-  valuation,
   tradeUrl,
   highlight,
 }: {
@@ -145,7 +210,6 @@ function IssuerColumn({
   fairValue: string;
   tradingPrice: string | null;
   deviation: number | null;
-  valuation: string;
   tradeUrl: string;
   highlight: boolean;
 }) {
@@ -153,18 +217,25 @@ function IssuerColumn({
     <div
       className={`flex flex-col gap-2 rounded-xl border p-3 ${
         highlight
-          ? "border-indigo-500/40 bg-indigo-500/5"
+          ? "border-gold-500/40 bg-gold-500/5"
           : "border-slate-800 bg-slate-950/40"
       }`}
     >
-      <p className="text-sm font-semibold text-slate-200">{issuer}</p>
+      <div className="flex items-center justify-between">
+        <p className="text-sm font-semibold text-slate-200">{issuer}</p>
+        {highlight && (
+          <span className="rounded-full bg-gold-500/20 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-gold-300">
+            Richer
+          </span>
+        )}
+      </div>
       <p className="text-[11px] leading-tight text-slate-500">{structure}</p>
 
       <div className="mt-1">
         <p className="text-[11px] uppercase tracking-wide text-slate-500">
           Fair value
         </p>
-        <p className="font-semibold tabular-nums text-slate-100">{fairValue}</p>
+        <p className="font-num font-semibold text-slate-100">{fairValue}</p>
       </div>
 
       <div>
@@ -172,7 +243,7 @@ function IssuerColumn({
           Trading price
         </p>
         {tradingPrice ? (
-          <p className="font-semibold tabular-nums text-slate-100">
+          <p className="font-num font-semibold text-slate-100">
             {tradingPrice}
             {deviation !== null && (
               <span
@@ -187,13 +258,6 @@ function IssuerColumn({
         ) : (
           <p className="text-sm text-slate-600">not published</p>
         )}
-      </div>
-
-      <div>
-        <p className="text-[11px] uppercase tracking-wide text-slate-500">
-          Implied valuation
-        </p>
-        <p className="font-semibold tabular-nums text-indigo-300">{valuation}</p>
       </div>
 
       <a
