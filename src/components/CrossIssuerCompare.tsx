@@ -89,6 +89,9 @@ function PairCard({
       <div className="mb-4 space-y-2.5 rounded-xl bg-slate-950/40 p-3.5">
         <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">
           Implied company valuation
+          <span className="ml-1.5 font-normal normal-case tracking-normal text-slate-600">
+            · each issuer&apos;s own published figure
+          </span>
         </p>
         <ValuationBar
           label="PreStocks"
@@ -233,14 +236,14 @@ function IssuerColumn({
 
       <div className="mt-1">
         <p className="text-[11px] uppercase tracking-wide text-slate-500">
-          Fair value
+          Fair value / token
         </p>
         <p className="font-num font-semibold text-slate-100">{fairValue}</p>
       </div>
 
       <div>
         <p className="text-[11px] uppercase tracking-wide text-slate-500">
-          Trading price
+          Trading price / token
         </p>
         {tradingPrice ? (
           <p className="font-num font-semibold text-slate-100">
